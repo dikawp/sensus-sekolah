@@ -101,6 +101,8 @@ export default function ReportsContent() {
             };
             if (C === 0) {
                ws[cellAddress].s.font = { bold: true };
+            } else if (typeof ws[cellAddress].v === 'number') {
+               ws[cellAddress].z = '"Rp" #,##0;[Red]-"Rp" #,##0';
             }
           }
         }
@@ -159,14 +161,14 @@ export default function ReportsContent() {
     applyTableStyle(summaryWs, summaryData.length, headerCols.length + 1);
     XLSX.utils.book_append_sheet(wb, summaryWs, 'Ringkasan');
 
-    // --- SHEET 2: PEMASUKAN ---
+    // --- SHEET 2: PEMASUKAN UMUM ---
     const incomeData: any[][] = [
-      [`LAPORAN PEMASUKAN: ${periodName}`],
+      [`LAPORAN PEMASUKAN UMUM: ${periodName}`],
       [],
       ['Kategori', ...headerCols.map(m => m === 'Total' ? m : getMonthName(m))],
     ];
     
-    const targetIncome = allIncome.filter(t => targetMonths.includes(t.month));
+    const targetIncome = allIncome.filter(t => targetMonths.includes(t.month) && t.category !== 'Dana BOSP');
     const incomeCats = Array.from(new Set(targetIncome.map(t => t.category)));
     
     incomeCats.forEach(cat => {
@@ -182,13 +184,20 @@ export default function ReportsContent() {
     });
     
     incomeData.push([]);
-    const totalIncomeRow: any[] = ['Total Pemasukan', ...rowPemasukan.slice(1)];
+    const totalIncomeRow: any[] = ['Total Pemasukan Umum'];
+    let incomeTotalSum = 0;
+    targetMonths.forEach(m => {
+      const val = targetIncome.filter(t => t.month === m).reduce((s, t) => s + t.amount, 0);
+      totalIncomeRow.push(val);
+      incomeTotalSum += val;
+    });
+    if (isAllMonths) totalIncomeRow.push(incomeTotalSum);
     incomeData.push(totalIncomeRow);
 
     const incomeWs = XLSX.utils.aoa_to_sheet(incomeData);
     incomeWs['!cols'] = [{ wch: 30 }, ...headerCols.map(() => ({ wch: 20 }))];
     applyTableStyle(incomeWs, incomeData.length, headerCols.length + 1);
-    XLSX.utils.book_append_sheet(wb, incomeWs, 'Pemasukan');
+    XLSX.utils.book_append_sheet(wb, incomeWs, 'Pemasukan Umum');
 
     // --- SHEET 3: PENGELUARAN (Umum) ---
     const expenseData: any[][] = [
@@ -228,21 +237,35 @@ export default function ReportsContent() {
     applyTableStyle(expenseWs, expenseData.length, headerCols.length + 1);
     XLSX.utils.book_append_sheet(wb, expenseWs, 'Pengeluaran');
 
-    // --- SHEET 4: PENGGUNAAN DANA BOSP ---
+    // --- SHEET 4: RINCIAN DANA BOSP ---
     const bospData: any[][] = [
-      [`LAPORAN PENGGUNAAN DANA BOSP: ${periodName}`],
+      [`RINCIAN DANA BOSP: ${periodName}`],
       [],
       ['Kategori', ...headerCols.map(m => m === 'Total' ? m : getMonthName(m))],
     ];
     
-    const targetBosp = allExpense.filter(t => targetMonths.includes(t.month) && t.fundSource === 'bosp');
-    const bospCats = Array.from(new Set(targetBosp.map(t => t.category)));
+    const targetBospIncome = allIncome.filter(t => targetMonths.includes(t.month) && t.category === 'Dana BOSP');
+    const targetBospExpense = allExpense.filter(t => targetMonths.includes(t.month) && t.fundSource === 'bosp');
     
+    // Pemasukan Row
+    const rowBospIncome: any[] = ['Pemasukan BOSP'];
+    let bospIncomeSum = 0;
+    targetMonths.forEach(m => {
+      const val = targetBospIncome.filter(t => t.month === m).reduce((s, t) => s + t.amount, 0);
+      rowBospIncome.push(val);
+      bospIncomeSum += val;
+    });
+    if (isAllMonths) rowBospIncome.push(bospIncomeSum);
+    bospData.push(rowBospIncome);
+
+    // Pengeluaran Rows
+    const bospCats = Array.from(new Set(targetBospExpense.map(t => t.category)));
     bospCats.forEach(cat => {
-      const row: any[] = [cat];
+      const row: any[] = [`Pengeluaran - ${cat}`];
       let catSum = 0;
       targetMonths.forEach(m => {
-        const val = targetBosp.filter(t => t.category === cat && t.month === m).reduce((s, t) => s + t.amount, 0);
+        // Use negative amount for pengeluaran
+        const val = -targetBospExpense.filter(t => t.category === cat && t.month === m).reduce((s, t) => s + t.amount, 0);
         row.push(val);
         catSum += val;
       });
@@ -251,10 +274,12 @@ export default function ReportsContent() {
     });
     
     bospData.push([]);
-    const totalBospRow: any[] = ['Total Penggunaan Dana BOSP'];
+    const totalBospRow: any[] = ['Sisa/Selisih Dana BOSP'];
     let bospTotalSum = 0;
     targetMonths.forEach(m => {
-      const val = targetBosp.filter(t => t.month === m).reduce((s, t) => s + t.amount, 0);
+      const inc = targetBospIncome.filter(t => t.month === m).reduce((s, t) => s + t.amount, 0);
+      const exp = targetBospExpense.filter(t => t.month === m).reduce((s, t) => s + t.amount, 0);
+      const val = inc - exp;
       totalBospRow.push(val);
       bospTotalSum += val;
     });
@@ -262,9 +287,9 @@ export default function ReportsContent() {
     bospData.push(totalBospRow);
 
     const bospWs = XLSX.utils.aoa_to_sheet(bospData);
-    bospWs['!cols'] = [{ wch: 30 }, ...headerCols.map(() => ({ wch: 20 }))];
+    bospWs['!cols'] = [{ wch: 40 }, ...headerCols.map(() => ({ wch: 20 }))];
     applyTableStyle(bospWs, bospData.length, headerCols.length + 1);
-    XLSX.utils.book_append_sheet(wb, bospWs, 'Penggunaan Dana BOSP');
+    XLSX.utils.book_append_sheet(wb, bospWs, 'Rincian Dana BOSP');
 
     // Save file
     const fileName = isAllMonths 

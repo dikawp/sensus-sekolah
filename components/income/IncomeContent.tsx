@@ -1,12 +1,12 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { getAllStudents, getIncomeByMonth, deleteIncomeTransaction, getAllCategories } from '@/lib/storage';
 import { getArrearsByMonth, formatCurrency, getCurrentMonth, getMonthName } from '@/lib/dashboardUtils';
 import { Student, IncomeTransaction, Category } from '@/lib/types';
 import { useAcademicYear } from '@/lib/academicYearContext';
-import { CheckCircle2, AlertCircle, Plus, Pencil, Trash2 } from 'lucide-react';
+import { CheckCircle2, AlertCircle, Plus, Pencil, Trash2, ChevronLeft, ChevronRight } from 'lucide-react';
 import TransactionModal from '@/components/modals/TransactionModal';
 import ReceiptModal from '@/components/modals/ReceiptModal';
 
@@ -27,6 +27,7 @@ export default function IncomeContent() {
   const [transactionToEdit, setTransactionToEdit] = useState<IncomeTransaction | null>(null);
   const [categories, setCategories] = useState<Category[]>([]);
   const { activeAcademicYear } = useAcademicYear();
+  const scrollRef = useRef<HTMLDivElement>(null);
 
   const minMonth = activeAcademicYear?.startDate?.substring(0, 7) || '';
   const maxMonth = activeAcademicYear?.endDate?.substring(0, 7) || '';
@@ -121,6 +122,16 @@ export default function IncomeContent() {
   const isPrevDisabled = minMonth ? currentMonth <= minMonth : false;
   const isNextDisabled = maxMonth ? currentMonth >= maxMonth : false;
 
+  const scrollTabs = (direction: 'left' | 'right') => {
+    if (scrollRef.current) {
+      const scrollAmount = 200;
+      scrollRef.current.scrollBy({
+        left: direction === 'left' ? -scrollAmount : scrollAmount,
+        behavior: 'smooth'
+      });
+    }
+  };
+
   const paidCount = students.filter((s) => s.isPaid).length;
   const totalIncome = students
     .filter((s) => s.isPaid)
@@ -207,13 +218,19 @@ export default function IncomeContent() {
       </div>
 
       {/* Tabs */}
-      <div className="border-b border-gray-200">
-        <div className="flex gap-6 overflow-x-auto">
+      <div className="relative border-b border-gray-200">
+        <button
+          onClick={() => scrollTabs('left')}
+          className="absolute left-0 top-0 bottom-0 z-10 px-1 bg-gradient-to-r from-white via-white to-transparent text-gray-400 hover:text-gray-800 transition sm:hidden flex items-center justify-center"
+        >
+          <ChevronLeft className="w-5 h-5 bg-white rounded-full shadow-sm" />
+        </button>
+        <div ref={scrollRef} className="flex gap-6 overflow-x-auto no-scrollbar snap-x snap-mandatory px-6 sm:px-0">
           {categories.filter(c => c.isPerStudent).map(cat => (
             <button
               key={cat.id}
               onClick={() => setActiveTab(cat.name)}
-              className={`px-4 py-3 font-medium whitespace-nowrap transition ${
+              className={`snap-start shrink-0 px-2 sm:px-4 py-3 font-medium whitespace-nowrap transition ${
                 activeTab === cat.name
                   ? 'text-green-600 border-b-2 border-green-600'
                   : 'text-gray-500 hover:text-gray-700'
@@ -224,7 +241,7 @@ export default function IncomeContent() {
           ))}
           <button
             onClick={() => setActiveTab('other')}
-            className={`px-4 py-3 font-medium whitespace-nowrap transition ${
+            className={`snap-start shrink-0 px-2 sm:px-4 py-3 font-medium whitespace-nowrap transition ${
               activeTab === 'other'
                 ? 'text-green-600 border-b-2 border-green-600'
                 : 'text-gray-500 hover:text-gray-700'
@@ -233,6 +250,12 @@ export default function IncomeContent() {
             Pendapatan Lainnya
           </button>
         </div>
+        <button
+          onClick={() => scrollTabs('right')}
+          className="absolute right-0 top-0 bottom-0 z-10 px-1 bg-gradient-to-l from-white via-white to-transparent text-gray-400 hover:text-gray-800 transition sm:hidden flex items-center justify-center"
+        >
+          <ChevronRight className="w-5 h-5 bg-white rounded-full shadow-sm" />
+        </button>
       </div>
 
       {/* Content */}

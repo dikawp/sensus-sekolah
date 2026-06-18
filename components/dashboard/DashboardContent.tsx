@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import {
   getFinancialSummary,
   getMonthlyTrends,
+  getMonthlyTrendsRange,
   formatCurrency,
   getCurrentMonth,
 } from '@/lib/dashboardUtils';
@@ -35,15 +36,18 @@ export default function DashboardContent() {
 
   useEffect(() => {
     const loadDashboardData = async () => {
-      const [sum, tr] = await Promise.all([
-        getFinancialSummary(currentMonth),
-        getMonthlyTrends(6)
-      ]);
+      const sum = await getFinancialSummary(currentMonth);
+      let tr;
+      if (minMonth && maxMonth) {
+        tr = await getMonthlyTrendsRange(minMonth, maxMonth);
+      } else {
+        tr = await getMonthlyTrends(6);
+      }
       setSummary(sum);
       setTrends(tr);
     };
     loadDashboardData();
-  }, [currentMonth]);
+  }, [currentMonth, minMonth, maxMonth]);
 
   const getPrevMonth = () => {
     const [year, month] = currentMonth.split('-').map(Number);
@@ -71,7 +75,7 @@ export default function DashboardContent() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       {/* Header and Month Picker */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
@@ -110,20 +114,20 @@ export default function DashboardContent() {
       </div>
 
       {/* KPI Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <KPICard
           title="Saldo Total"
           value={formatCurrency(summary.totalBalance)}
           icon={Wallet}
-          trend={{ value: summary.monthlyIncome, label: 'pemasukan bulan ini' }}
+          trend={{ value: summary.totalBalance, label: 'saldo keseluruhan', isPercentage: false }}
           color="green"
         />
         <KPICard
-          title="Saldo Bulan Ini"
-          value={formatCurrency(summary.monthlyBalance)}
+          title="Saldo Operasional"
+          value={formatCurrency(summary.operationalBalance)}
           icon={Wallet}
-          trend={{ value: summary.monthlyBalance, label: 'bersih bulan ini', isPercentage: false }}
-          color={summary.monthlyBalance >= 0 ? "green" : "red"}
+          trend={{ value: summary.operationalBalance, label: 'bersih non-BOSP', isPercentage: false }}
+          color={summary.operationalBalance >= 0 ? "green" : "red"}
         />
         <KPICard
           title="Pemasukan Bulan Ini"
@@ -155,13 +159,11 @@ export default function DashboardContent() {
       )}
 
       {/* Charts and Actions */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Trend Chart */}
-        <div className="lg:col-span-2">
-          <TrendChart data={trends} />
-        </div>
+      <div className="grid grid-cols-1 gap-4">
 
-        {/* BOSP Summary Table */}
+        <TrendChart data={trends} />
+
+
         <BOSPTable bossRemaining={summary.bossRemaining} />
       </div>
     </div>

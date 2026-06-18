@@ -82,6 +82,7 @@ export interface FinancialSummary {
   bossRemaining: number;
   arrearsCount: number;
   monthlyBalance: number;
+  operationalBalance: number;
 }
 
 export interface MonthlyTrend {

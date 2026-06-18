@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { getAllStudents, saveStudent, deleteStudent } from '@/lib/storage';
 import { Student } from '@/lib/types';
 import { Plus, Trash2, Edit2, X, Search } from 'lucide-react';
+import { DataTable, Column } from '@/components/ui/DataTable';
 
 export default function StudentsContent() {
   const [students, setStudents] = useState<Student[]>([]);
@@ -53,6 +54,40 @@ export default function StudentsContent() {
     const matchesClass = filterClass === 'all' || s.class === filterClass;
     return matchesSearch && matchesClass;
   });
+
+  const columns: Column<Student>[] = [
+    { header: 'NIS', accessor: 'studentId', sortable: true },
+    { header: 'Nama Siswa', accessor: 'name', sortable: true },
+    { header: 'Kelas', accessor: 'class', sortable: true, hideOnMobile: true, cell: (student) => (<span className="inline-flex px-2 py-1 bg-blue-50 text-blue-700 rounded text-xs font-medium">{student.class}</span>) },
+    { header: 'Nama Orang Tua', accessor: 'parentName', sortable: true, hideOnMobile: true },
+    { header: 'No. HP', accessor: 'parentPhone', hideOnMobile: true },
+    { header: 'Status', accessor: 'active', sortable: true, hideOnMobile: true, cell: (student) => (<span className={`inline-flex px-2 py-1 rounded text-xs font-medium ${student.active ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-700'}`}>{student.active ? 'Aktif' : 'Nonaktif'}</span>) },
+    {
+      header: 'Aksi',
+      accessor: 'id',
+      cell: (student) => (
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => {
+              setEditingStudent(student);
+              setShowModal(true);
+            }}
+            className="p-1.5 text-green-600 hover:bg-green-100 rounded transition"
+            title="Edit"
+          >
+            <Edit2 className="w-4 h-4" />
+          </button>
+          <button
+            onClick={() => handleDelete(student.id)}
+            className="p-1.5 text-red-600 hover:bg-red-100 rounded transition"
+            title="Hapus"
+          >
+            <Trash2 className="w-4 h-4" />
+          </button>
+        </div>
+      )
+    }
+  ];
 
   return (
     <div className="space-y-6">
@@ -104,72 +139,14 @@ export default function StudentsContent() {
           </div>
         </CardHeader>
         <CardContent>
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-sm">
-              <thead className="bg-gray-50 text-gray-700">
-                <tr>
-                  <th className="px-4 py-3 font-medium rounded-tl-lg">NIS</th>
-                  <th className="px-4 py-3 font-medium">Nama Siswa</th>
-                  <th className="px-4 py-3 font-medium">Kelas</th>
-                  <th className="px-4 py-3 font-medium">Nama Orang Tua</th>
-                  <th className="px-4 py-3 font-medium">No. HP</th>
-                  <th className="px-4 py-3 font-medium">Status</th>
-                  <th className="px-4 py-3 font-medium rounded-tr-lg">Aksi</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-100">
-                {filteredStudents.length === 0 ? (
-                  <tr>
-                    <td colSpan={7} className="px-4 py-8 text-center text-gray-500">
-                      Tidak ada data murid yang ditemukan
-                    </td>
-                  </tr>
-                ) : (
-                  filteredStudents.map((student) => (
-                    <tr key={student.id} className="hover:bg-gray-50 transition">
-                      <td className="px-4 py-3">{student.studentId}</td>
-                      <td className="px-4 py-3 font-medium text-gray-900">{student.name}</td>
-                      <td className="px-4 py-3">
-                        <span className="inline-flex px-2 py-1 bg-blue-50 text-blue-700 rounded text-xs font-medium">
-                          {student.class}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3">{student.parentName}</td>
-                      <td className="px-4 py-3">{student.parentPhone}</td>
-                      <td className="px-4 py-3">
-                        <span className={`inline-flex px-2 py-1 rounded text-xs font-medium ${
-                          student.active ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-700'
-                        }`}>
-                          {student.active ? 'Aktif' : 'Nonaktif'}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3">
-                        <div className="flex items-center gap-2">
-                          <button
-                            onClick={() => {
-                              setEditingStudent(student);
-                              setShowModal(true);
-                            }}
-                            className="p-1.5 text-green-600 hover:bg-green-100 rounded transition"
-                            title="Edit"
-                          >
-                            <Edit2 className="w-4 h-4" />
-                          </button>
-                          <button
-                            onClick={() => handleDelete(student.id)}
-                            className="p-1.5 text-red-600 hover:bg-red-100 rounded transition"
-                            title="Hapus"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
+          <DataTable
+            columns={columns}
+            data={filteredStudents}
+            keyField="id"
+            pagination={true}
+            rowsPerPage={10}
+            emptyMessage="Tidak ada data murid yang ditemukan"
+          />
         </CardContent>
       </Card>
 

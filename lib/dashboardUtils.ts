@@ -58,6 +58,16 @@ export const getFinancialSummary = async (month: string = getCurrentMonth()): Pr
 
   const arrearsCount = students.filter((s) => !paidStudents.has(s.id)).length;
 
+  const monthlyIncomeNonBosp = incomeTransactions
+    .filter((t) => t.month === month && t.status === 'completed' && t.category !== 'Dana BOSP')
+    .reduce((sum, t) => sum + t.amount, 0);
+
+  const monthlyExpenseNonBosp = expenseTransactions
+    .filter((t) => t.month === month && t.fundSource !== 'bosp')
+    .reduce((sum, t) => sum + t.amount, 0);
+
+  const operationalBalance = monthlyIncomeNonBosp - monthlyExpenseNonBosp;
+
   // Calculate total balance (sum of all months)
   const totalBalance =
     incomeTransactions.filter((t) => t.status === 'completed').reduce((sum, t) => sum + t.amount, 0) -
@@ -72,6 +82,7 @@ export const getFinancialSummary = async (month: string = getCurrentMonth()): Pr
     bossRemaining,
     arrearsCount,
     monthlyBalance: monthlyIncome - monthlyExpense,
+    operationalBalance,
   };
 };
 
@@ -103,6 +114,40 @@ export const getMonthlyTrends = async (monthsBack: number = 6): Promise<MonthlyT
     });
   }
 
+  return trends;
+};
+
+export const getMonthlyTrendsRange = async (startMonth: string, endMonth: string): Promise<MonthlyTrend[]> => {
+  const trends: MonthlyTrend[] = [];
+  const [incomeTransactions, expenseTransactions] = await Promise.all([
+    getAllIncomeTransactions(),
+    getAllExpenseTransactions()
+  ]);
+
+  let current = new Date(startMonth + '-01');
+  const end = new Date(endMonth + '-01');
+
+  // To avoid infinite loop in case of bad data, limit to 24 months
+  let count = 0;
+  while (current <= end && count < 24) {
+    const month = format(current, 'yyyy-MM');
+    const income = incomeTransactions
+      .filter((t) => t.month === month && t.status === 'completed')
+      .reduce((sum, t) => sum + t.amount, 0);
+
+    const expense = expenseTransactions
+      .filter((t) => t.month === month)
+      .reduce((sum, t) => sum + t.amount, 0);
+
+    trends.push({
+      month: getMonthName(month),
+      income,
+      expense,
+      balance: income - expense,
+    });
+    current = addMonths(current, 1);
+    count++;
+  }
   return trends;
 };
 
