@@ -2,14 +2,16 @@
 
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { getAllStudents, saveStudent, deleteStudent } from '@/lib/storage';
+import { getAllStudents, saveStudent, deleteStudent, saveStudents } from '@/lib/storage';
 import { Student } from '@/lib/types';
-import { Plus, Trash2, Edit2, X, Search } from 'lucide-react';
+import { Plus, Trash2, Edit2, X, Search, Download, Upload } from 'lucide-react';
 import { DataTable, Column } from '@/components/ui/DataTable';
+import * as XLSX from 'xlsx-js-style';
 
 export default function StudentsContent() {
   const [students, setStudents] = useState<Student[]>([]);
   const [showModal, setShowModal] = useState(false);
+  const [showImportModal, setShowImportModal] = useState(false);
   const [editingStudent, setEditingStudent] = useState<Student | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [filterClass, setFilterClass] = useState('all');
@@ -89,6 +91,109 @@ export default function StudentsContent() {
     }
   ];
 
+  const downloadTemplate = () => {
+    const ws = XLSX.utils.json_to_sheet([
+      {
+        'NIS': 'A-001',
+        'Nama Lengkap': 'Ahmad Budi',
+        'Kelas': 'TK A',
+        'Nama Orang Tua': 'Budi Santoso',
+        'Nomor HP': '081234567890',
+        'Status': 'Aktif'
+      }
+    ]);
+
+    // Set column widths
+    ws['!cols'] = [
+      { wch: 15 }, // NIS
+      { wch: 25 }, // Nama Lengkap
+      { wch: 10 }, // Kelas
+      { wch: 25 }, // Nama Orang Tua
+      { wch: 15 }, // Nomor HP
+      { wch: 10 }, // Status
+    ];
+
+    // Define styles
+    const headerStyle = {
+      font: { bold: true, color: { rgb: "FFFFFF" } },
+      fill: { fgColor: { rgb: "16A34A" } }, // Tailwind green-600
+      alignment: { horizontal: "center", vertical: "center" },
+      border: {
+        top: { style: "thin", color: { rgb: "000000" } },
+        bottom: { style: "thin", color: { rgb: "000000" } },
+        left: { style: "thin", color: { rgb: "000000" } },
+        right: { style: "thin", color: { rgb: "000000" } }
+      }
+    };
+
+    const dataStyle = {
+      alignment: { vertical: "center" },
+      border: {
+        top: { style: "thin", color: { rgb: "000000" } },
+        bottom: { style: "thin", color: { rgb: "000000" } },
+        left: { style: "thin", color: { rgb: "000000" } },
+        right: { style: "thin", color: { rgb: "000000" } }
+      }
+    };
+
+    // Apply styles
+    const range = XLSX.utils.decode_range(ws['!ref'] || "A1:F2");
+    for (let R = range.s.r; R <= range.e.r; ++R) {
+      for (let C = range.s.c; C <= range.e.c; ++C) {
+        const cellAddress = XLSX.utils.encode_cell({ c: C, r: R });
+        if (!ws[cellAddress]) continue;
+        ws[cellAddress].s = R === 0 ? headerStyle : dataStyle;
+      }
+    }
+
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Template_Murid');
+    XLSX.writeFile(wb, 'Template_Import_Murid.xlsx');
+  };
+
+  const handleImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = async (evt) => {
+      try {
+        const bstr = evt.target?.result;
+        const wb = XLSX.read(bstr, { type: 'binary' });
+        const wsname = wb.SheetNames[0];
+        const ws = wb.Sheets[wsname];
+        const data = XLSX.utils.sheet_to_json(ws);
+        
+        const newStudents: Student[] = data.map((row: any) => ({
+          id: Math.random().toString(36).substring(2, 11),
+          registeredAt: new Date().toISOString(),
+          studentId: String(row['NIS'] || ''),
+          name: String(row['Nama Lengkap'] || ''),
+          class: String(row['Kelas'] || 'TK A'),
+          parentName: String(row['Nama Orang Tua'] || ''),
+          parentPhone: String(row['Nomor HP'] || ''),
+          active: row['Status'] === 'Nonaktif' ? false : true,
+        })).filter((s) => s.studentId && s.name);
+
+        if (newStudents.length > 0) {
+          await saveStudents(newStudents);
+          loadData();
+          alert(`${newStudents.length} murid berhasil diimport!`);
+        } else {
+          alert('Data tidak valid atau kosong. Pastikan format sesuai template.');
+        }
+      } catch (error) {
+        console.error('Error importing:', error);
+        alert('Terjadi kesalahan saat mengimport file.');
+      }
+      
+      if (e.target) {
+         e.target.value = '';
+      }
+    };
+    reader.readAsBinaryString(file);
+  };
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -99,16 +204,25 @@ export default function StudentsContent() {
             Kelola data murid dan kelas
           </p>
         </div>
-        <button
-          onClick={() => {
-            setEditingStudent(null);
-            setShowModal(true);
-          }}
-          className="flex items-center justify-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition"
-        >
-          <Plus className="w-5 h-5" />
-          Tambah Murid
-        </button>
+        <div className="flex flex-wrap items-center gap-3">
+          <button
+            onClick={() => setShowImportModal(true)}
+            className="flex items-center justify-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition shadow-sm"
+          >
+            <Upload className="w-4 h-4" />
+            <span className="hidden sm:inline">Import Murid</span>
+          </button>
+          <button
+            onClick={() => {
+              setEditingStudent(null);
+              setShowModal(true);
+            }}
+            className="flex items-center justify-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition shadow-sm"
+          >
+            <Plus className="w-4 h-4" />
+            Tambah Murid
+          </button>
+        </div>
       </div>
 
       <Card>
@@ -159,6 +273,55 @@ export default function StudentsContent() {
             setEditingStudent(null);
           }}
         />
+      )}
+
+      {showImportModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+          <Card className="w-full max-w-md">
+            <div className="p-6">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-xl font-bold text-gray-900">Import Data Murid</h2>
+                <button
+                  onClick={() => setShowImportModal(false)}
+                  className="p-1 hover:bg-gray-100 rounded transition"
+                >
+                  <X className="w-5 h-5 text-gray-600" />
+                </button>
+              </div>
+              
+              <div className="space-y-6">
+                <div className="p-4 bg-blue-50 rounded-lg border border-blue-100">
+                  <h3 className="font-medium text-blue-900 mb-2">1. Unduh Template</h3>
+                  <p className="text-sm text-blue-700 mb-3">
+                    Gunakan template Excel yang disediakan untuk memastikan format data sesuai.
+                  </p>
+                  <button
+                    onClick={downloadTemplate}
+                    className="flex items-center justify-center gap-2 w-full px-4 py-2 bg-white border border-blue-200 text-blue-700 rounded-lg hover:bg-blue-50 transition shadow-sm"
+                  >
+                    <Download className="w-4 h-4" />
+                    Download Template
+                  </button>
+                </div>
+
+                <div className="p-4 bg-purple-50 rounded-lg border border-purple-100">
+                  <h3 className="font-medium text-purple-900 mb-2">2. Upload File</h3>
+                  <p className="text-sm text-purple-700 mb-3">
+                    Upload file Excel yang sudah diisi dengan data murid.
+                  </p>
+                  <label className="flex items-center justify-center gap-2 w-full px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition shadow-sm cursor-pointer">
+                    <Upload className="w-4 h-4" />
+                    Pilih File Excel
+                    <input type="file" accept=".xlsx, .xls" className="hidden" onChange={(e) => {
+                      handleImport(e);
+                      setShowImportModal(false);
+                    }} />
+                  </label>
+                </div>
+              </div>
+            </div>
+          </Card>
+        </div>
       )}
     </div>
   );

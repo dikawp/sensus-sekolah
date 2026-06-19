@@ -143,6 +143,25 @@ export const saveStudent = async (student: Student): Promise<void> => {
   if (error) throw error;
 };
 
+export const saveStudents = async (students: Student[]): Promise<void> => {
+  const yearId = getActiveYearId();
+  if (!yearId) throw new Error('No active academic year');
+  if (students.length === 0) return;
+  const payload = students.map(student => ({
+    id: student.id,
+    name: student.name,
+    student_id: student.studentId,
+    class: student.class,
+    parent_name: student.parentName,
+    parent_phone: student.parentPhone,
+    registered_at: student.registeredAt,
+    active: student.active,
+    academic_year_id: yearId
+  }));
+  const { error } = await supabase.from('students').upsert(payload);
+  if (error) throw error;
+};
+
 export const deleteStudent = async (studentId: string): Promise<void> => {
   const { error } = await supabase.from('students').delete().eq('id', studentId);
   if (error) throw error;

@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { getAllStudents, getIncomeByMonth, deleteIncomeTransaction, getAllCategories } from '@/lib/storage';
+import { getAllStudents, getIncomeByMonth, deleteIncomeTransaction, getAllCategories, getAllIncomeTransactions } from '@/lib/storage';
 import { getArrearsByMonth, formatCurrency, getCurrentMonth, getMonthName } from '@/lib/dashboardUtils';
 import { Student, IncomeTransaction, Category } from '@/lib/types';
 import { useAcademicYear } from '@/lib/academicYearContext';
@@ -22,6 +22,7 @@ export default function IncomeContent() {
   const [showReceiptModal, setShowReceiptModal] = useState(false);
   const [selectedTransaction, setSelectedTransaction] = useState<IncomeTransaction | null>(null);
   const [arrears, setArrears] = useState<any[]>([]);
+  const [yearlyCategoryTotals, setYearlyCategoryTotals] = useState<Record<string, number>>({});
   const [activeTab, setActiveTab] = useState<string>('other');
   const [otherIncomes, setOtherIncomes] = useState<IncomeTransaction[]>([]);
   const [transactionToEdit, setTransactionToEdit] = useState<IncomeTransaction | null>(null);
@@ -60,11 +61,12 @@ export default function IncomeContent() {
   }, [currentMonth]);
 
   const loadData = async () => {
-    const [allStudents, monthTransactions, allCats, arrearsData] = await Promise.all([
+    const [allStudents, monthTransactions, allCats, arrearsData, allYearTransactions] = await Promise.all([
       getAllStudents(),
       getIncomeByMonth(currentMonth),
       getAllCategories(),
-      getArrearsByMonth(currentMonth)
+      getArrearsByMonth(currentMonth),
+      getAllIncomeTransactions()
     ]);
     
     const activeStudents = allStudents.filter((s) => s.active);
@@ -87,9 +89,18 @@ export default function IncomeContent() {
       };
     });
 
+    const totals: Record<string, number> = {};
+    const yearCategoryTrans = allYearTransactions.filter(t => t.category === targetCategory);
+    for (const t of yearCategoryTrans) {
+      if (t.studentId) {
+        totals[t.studentId] = (totals[t.studentId] || 0) + t.amount;
+      }
+    }
+
     setStudents(studentsWithPayment);
     setOtherIncomes(nonSppTransactions);
     setArrears(arrearsData);
+    setYearlyCategoryTotals(totals);
   };
 
   useEffect(() => {
@@ -331,25 +342,31 @@ export default function IncomeContent() {
           </Card>
         </div>
 
-        {/* Arrears Panel */}
-        {arrears.length > 0 && (
-          <Card className="border-orange-200 bg-orange-50">
+        {/* Total Pembayaran Panel */}
+        {students.length > 0 && (
+          <Card className="border-green-200 bg-green-50">
             <CardHeader>
-              <CardTitle className="text-orange-900">Daftar Tunggakan</CardTitle>
+              <CardTitle className="text-green-900 text-md">Total Pembayaran {activeTab}</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="space-y-2 max-h-96 overflow-y-auto">
-                {arrears.map((student) => (
-                  <div
-                    key={student.id}
-                    className="p-2 bg-white rounded border border-orange-200"
-                  >
-                    <p className="text-sm font-medium text-gray-900">{student.name}</p>
-                    <p className="text-xs text-gray-600 mt-1">
-                      📱 {student.parentPhone}
-                    </p>
-                  </div>
-                ))}
+              <div className="space-y-2 max-h-96 overflow-y-auto pr-2">
+                {students.map((student) => {
+                  const totalPaid = yearlyCategoryTotals[student.id] || 0;
+                  return (
+                    <div
+                      key={student.id}
+                      className="p-3 bg-white rounded-lg border border-green-200 flex flex-col gap-1 shadow-sm hover:shadow-md transition-shadow"
+                    >
+                      <div className="flex justify-between items-start">
+                        <div>
+                          <p className="text-sm font-medium text-gray-900">{student.name}</p>
+                          <p className="text-xs text-gray-500">{student.class}</p>
+                        </div>
+                        <p className="text-sm font-bold text-green-700">{formatCurrency(totalPaid)}</p>
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
             </CardContent>
           </Card>
