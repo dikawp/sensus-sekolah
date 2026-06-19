@@ -100,21 +100,6 @@ export default function LoginPage() {
                 {isLoading ? 'Memproses...' : 'Masuk'}
               </Button>
             </form>
-
-            {/* Demo Credentials */}
-            <div className="mt-6 pt-6 border-t border-gray-200">
-              <p className="text-xs text-gray-600 mb-3 font-medium">Akun Demo:</p>
-              <div className="space-y-2 text-xs text-gray-600">
-                <div>
-                  <span className="font-medium">SuperAdmin:</span>
-                  <p className="text-gray-500">superadmin@sekolah.id (password apapun)</p>
-                </div>
-                <div>
-                  <span className="font-medium">Admin:</span>
-                  <p className="text-gray-500">admin@sekolah.id (password apapun)</p>
-                </div>
-              </div>
-            </div>
           </div>
         </Card>
       </div>
