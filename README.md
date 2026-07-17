@@ -133,21 +133,3 @@ Aplikasi sekarang akan berjalan di `http://localhost:3000`
 /supabase         - Script database (schema.sql)
 ```
 
-## 🛠️ Panduan Pengembangan
-
-### Menambah/Mengubah Kolom Database
-Jika Anda ingin memodifikasi struktur database:
-1. Ubah di dashboard Supabase secara langsung (Tabel Editor), ATAU
-2. Tulis query SQL dan perbarui `schema.sql` sebagai dokumentasi.
-3. Pastikan untuk memperbarui interface di `lib/types.ts`.
-4. Perbarui fungsi *fetching* atau *upserting* di `lib/storage.ts`.
-
-## 📄 License
-
-Dibangun dengan antusiasme untuk mendigitalisasi pendidikan Indonesia.
-
----
-
-**Version**: 1.1 (Supabase Integrated)  
-**Last Updated**: Juni 2026  
-**School Target**: TK/PAUD & Sederajat
